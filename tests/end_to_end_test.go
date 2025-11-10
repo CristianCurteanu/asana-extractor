@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/CristianCurteanu/reco/pkg/asana"
-	"github.com/CristianCurteanu/reco/pkg/storage"
+	"github.com/CristianCurteanu/asana-extractor/pkg/asana"
+	"github.com/CristianCurteanu/asana-extractor/pkg/storage"
 	"github.com/google/uuid"
 	"github.com/h2non/gock"
 	"github.com/stretchr/testify/suite"

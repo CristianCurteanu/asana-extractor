@@ -9,9 +9,9 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/CristianCurteanu/reco/pkg/asana"
-	"github.com/CristianCurteanu/reco/pkg/storage"
-	"github.com/CristianCurteanu/reco/pkg/ticker"
+	"github.com/CristianCurteanu/asana-extractor/pkg/asana"
+	"github.com/CristianCurteanu/asana-extractor/pkg/storage"
+	"github.com/CristianCurteanu/asana-extractor/pkg/ticker"
 )
 
 var (

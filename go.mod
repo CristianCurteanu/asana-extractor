@@ -1,4 +1,4 @@
-module github.com/CristianCurteanu/reco
+module github.com/CristianCurteanu/asana-extractor
 
 go 1.25.3
 
