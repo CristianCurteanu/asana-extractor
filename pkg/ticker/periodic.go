@@ -8,7 +8,7 @@ import (
 
 var (
 	PeriodicExecution5min  = 60 * 6 * time.Second
-	PeriodicExecution30sec = 5 * time.Second
+	PeriodicExecution30sec = 30 * time.Second
 )
 
 type Handler func() error
