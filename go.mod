@@ -3,7 +3,7 @@ module github.com/CristianCurteanu/asana-extractor
 go 1.25.3
 
 require (
-	github.com/CristianCurteanu/angler v0.1.0
+	github.com/CristianCurteanu/angler v0.2.0
 	github.com/CristianCurteanu/slumber v0.2.0
 	github.com/h2non/gock v1.2.0
 	github.com/stretchr/testify v1.11.1

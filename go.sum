@@ -1,5 +1,7 @@
 github.com/CristianCurteanu/angler v0.1.0 h1:a1jp8x0rNzdz4pqLUes2UgfDeIEER07boN5QxO8cLkY=
 github.com/CristianCurteanu/angler v0.1.0/go.mod h1:vuXIq3Dv2UZsZgb5I15M8RPoXA13Jt7JY4idSR9UF+w=
+github.com/CristianCurteanu/angler v0.2.0 h1:+bVq202Llal2NmH/L36i43B5W9dz9d9GyPrrkLfPEw4=
+github.com/CristianCurteanu/angler v0.2.0/go.mod h1:gyoLOofXSCF3OG8OaLnrEnz9VyYR5nRymBBa0K6Hd4s=
 github.com/CristianCurteanu/slumber v0.2.0 h1:MsVUWgNR0RHoiX926GMjmR+Gt0zk9f3Rk5uc/7GtrLU=
 github.com/CristianCurteanu/slumber v0.2.0/go.mod h1:Sxq0yfUfBXVf9sVgHDR43/+RKk+AjWn5iFxkcLCm6ZA=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
