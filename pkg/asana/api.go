@@ -1,8 +1,10 @@
 package asana
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -32,33 +34,27 @@ func NewAPIClient(host, accessToken string) APIClient {
 }
 
 func (c *apiClient) ListUsers(query url.Values) ([]User, *NextPage, error) {
+	var errResp ErrorsResponse
+	handleStatusError := func(message string) angler.StatusHandlerFunc {
+		return handleErrorStatusWithResponse(&errResp, message)
+	}
+
 	users, err := slumber.Retry(func() (MultipleResponse[User], error) {
 
+		url := fmt.Sprintf("%s/users?%s", c.host, query.Encode())
 		users, err := angler.Fetch[MultipleResponse[User]](
-			angler.WithURL(fmt.Sprintf("%s/users?%s", c.host, query.Encode())),
+			angler.WithURL(url),
 			angler.WithHeader("Authorization", fmt.Sprintf("Bearer %s", c.accessToken)),
-			angler.WithStatusHandler(http.StatusTooManyRequests, func(resp *http.Response) (any, error) {
-				sleepIfRetryAfter(&resp.Header, 50*time.Millisecond)
-
-				return nil, errToManyRequests
-			}),
-			angler.WithStatusHandler(http.StatusBadRequest, func(resp *http.Response) (any, error) {
-				return nil, errors.New("missing of malformed parameter")
-			}),
-			angler.WithStatusHandler(http.StatusUnauthorized, func(resp *http.Response) (any, error) {
-				return nil, errors.New("unauthorized")
-			}),
-			angler.WithStatusHandler(http.StatusNotFound, func(resp *http.Response) (any, error) {
-				return nil, errors.New("not found")
-			}),
-			angler.WithStatusHandler(http.StatusInternalServerError, func(resp *http.Response) (any, error) {
-				return nil, errors.New("internal error, retry")
-			}),
+			angler.WithStatusHandler(http.StatusTooManyRequests, handleStatusTooManyRequests(50*time.Millisecond)),
+			angler.WithStatusHandler(http.StatusBadRequest, handleStatusError("missing of malformed parameter")),
+			angler.WithStatusHandler(http.StatusUnauthorized, handleStatusError("unauthorized")),
+			angler.WithStatusHandler(http.StatusNotFound, handleStatusError("not found")),
+			angler.WithStatusHandler(http.StatusInternalServerError, handleStatusError("internal error, try again later")),
 		)
 		if err != nil && errors.Is(err, errToManyRequests) {
 			return users, err
 		}
-		return users, err
+		return users, nil
 	},
 		slumber.WithRetryPolicy(slumber.ExponentialBackoff),
 		slumber.WithDelay(50*time.Millisecond),
@@ -67,39 +63,34 @@ func (c *apiClient) ListUsers(query url.Values) ([]User, *NextPage, error) {
 
 	if err != nil {
 		return nil, nil, err
+	}
+	if len(errResp.Errors) != 0 {
+		return nil, nil, fmt.Errorf("bad HTTP response status response: %+v", errResp)
 	}
 
 	return users.Data, users.NextPage, nil
 }
 
 func (c *apiClient) ListWorkspaceUsers(workspaceId string, query url.Values) ([]User, *NextPage, error) {
+	var errResp *ErrorsResponse
+	handleStatusError := func(message string) angler.StatusHandlerFunc {
+		return handleErrorStatusWithResponse(&errResp, message)
+	}
 	users, err := slumber.Retry(func() (MultipleResponse[User], error) {
 
 		users, err := angler.Fetch[MultipleResponse[User]](
 			angler.WithURL(fmt.Sprintf("%s/workspaces/%s/users?%s", c.host, workspaceId, query.Encode())),
 			angler.WithHeader("Authorization", fmt.Sprintf("Bearer %s", c.accessToken)),
-			angler.WithStatusHandler(http.StatusTooManyRequests, func(resp *http.Response) (any, error) {
-				sleepIfRetryAfter(&resp.Header, 50*time.Millisecond)
-
-				return nil, errToManyRequests
-			}),
-			angler.WithStatusHandler(http.StatusBadRequest, func(resp *http.Response) (any, error) {
-				return nil, errors.New("missing of malformed parameter")
-			}),
-			angler.WithStatusHandler(http.StatusUnauthorized, func(resp *http.Response) (any, error) {
-				return nil, errors.New("unauthorized")
-			}),
-			angler.WithStatusHandler(http.StatusNotFound, func(resp *http.Response) (any, error) {
-				return nil, errors.New("not found")
-			}),
-			angler.WithStatusHandler(http.StatusInternalServerError, func(resp *http.Response) (any, error) {
-				return nil, errors.New("internal error, retry")
-			}),
+			angler.WithStatusHandler(http.StatusTooManyRequests, handleStatusTooManyRequests(50*time.Millisecond)),
+			angler.WithStatusHandler(http.StatusBadRequest, handleStatusError("missing of malformed parameter")),
+			angler.WithStatusHandler(http.StatusUnauthorized, handleStatusError("unauthorized")),
+			angler.WithStatusHandler(http.StatusNotFound, handleStatusError("not found")),
+			angler.WithStatusHandler(http.StatusInternalServerError, handleStatusError("internal error, try again later")),
 		)
 		if err != nil && errors.Is(err, errToManyRequests) {
 			return users, err
 		}
-		return users, err
+		return users, nil
 	},
 		slumber.WithRetryPolicy(slumber.ExponentialBackoff),
 		slumber.WithDelay(50*time.Millisecond),
@@ -107,39 +98,35 @@ func (c *apiClient) ListWorkspaceUsers(workspaceId string, query url.Values) ([]
 	)
 	if err != nil {
 		return nil, nil, err
+	}
+	if errResp != nil {
+		return nil, nil, fmt.Errorf("bad HTTP response status response: %+v", errResp)
 	}
 
 	return users.Data, users.NextPage, nil
 }
 
 func (c *apiClient) ListWorkspaces(query url.Values) ([]Workspace, *NextPage, error) {
+	var errResp *ErrorsResponse
+	handleStatusError := func(message string) angler.StatusHandlerFunc {
+		return handleErrorStatusWithResponse(&errResp, message)
+	}
+
 	workspaces, err := slumber.Retry(func() (MultipleResponse[Workspace], error) {
 
 		workspaces, err := angler.Fetch[MultipleResponse[Workspace]](
 			angler.WithURL(fmt.Sprintf("%s/workspaces?%s", c.host, query.Encode())),
 			angler.WithHeader("Authorization", fmt.Sprintf("Bearer %s", c.accessToken)),
-			angler.WithStatusHandler(http.StatusTooManyRequests, func(resp *http.Response) (any, error) {
-				sleepIfRetryAfter(&resp.Header, 50*time.Millisecond)
-
-				return nil, errToManyRequests
-			}),
-			angler.WithStatusHandler(http.StatusBadRequest, func(resp *http.Response) (any, error) {
-				return nil, errors.New("missing of malformed parameter")
-			}),
-			angler.WithStatusHandler(http.StatusUnauthorized, func(resp *http.Response) (any, error) {
-				return nil, errors.New("unauthorized")
-			}),
-			angler.WithStatusHandler(http.StatusNotFound, func(resp *http.Response) (any, error) {
-				return nil, errors.New("not found")
-			}),
-			angler.WithStatusHandler(http.StatusInternalServerError, func(resp *http.Response) (any, error) {
-				return nil, errors.New("internal error, retry")
-			}),
+			angler.WithStatusHandler(http.StatusTooManyRequests, handleStatusTooManyRequests(50*time.Millisecond)),
+			angler.WithStatusHandler(http.StatusBadRequest, handleStatusError("missing of malformed parameter")),
+			angler.WithStatusHandler(http.StatusUnauthorized, handleStatusError("unauthorized")),
+			angler.WithStatusHandler(http.StatusNotFound, handleStatusError("not found")),
+			angler.WithStatusHandler(http.StatusInternalServerError, handleStatusError("internal error, try again later")),
 		)
 		if err != nil && errors.Is(err, errToManyRequests) {
 			return workspaces, err
 		}
-		return workspaces, err
+		return workspaces, nil
 	},
 		slumber.WithRetryPolicy(slumber.ExponentialBackoff),
 		slumber.WithDelay(50*time.Millisecond),
@@ -147,40 +134,35 @@ func (c *apiClient) ListWorkspaces(query url.Values) ([]Workspace, *NextPage, er
 	)
 	if err != nil {
 		return nil, nil, err
+	}
+	if errResp != nil {
+		return nil, nil, fmt.Errorf("bad HTTP response status response: %+v", errResp)
 	}
 
 	return workspaces.Data, workspaces.NextPage, nil
 }
 
 func (c *apiClient) ListProjects(query url.Values) ([]Project, *NextPage, error) {
+	var errResp *ErrorsResponse
+	handleStatusError := func(message string) angler.StatusHandlerFunc {
+		return handleErrorStatusWithResponse(&errResp, message)
+	}
 	projects, err := slumber.Retry(func() (MultipleResponse[Project], error) {
 
 		projects, err := angler.Fetch[MultipleResponse[Project]](
 			angler.WithURL(fmt.Sprintf("%s/projects?%s", c.host, query.Encode())),
 			angler.WithHeader("Authorization", fmt.Sprintf("Bearer %s", c.accessToken)),
-			angler.WithStatusHandler(http.StatusTooManyRequests, func(resp *http.Response) (any, error) {
-				sleepIfRetryAfter(&resp.Header, 50*time.Millisecond)
-
-				return nil, errToManyRequests
-			}),
-			angler.WithStatusHandler(http.StatusBadRequest, func(resp *http.Response) (any, error) {
-				return nil, errors.New("missing of malformed parameter")
-			}),
-			angler.WithStatusHandler(http.StatusUnauthorized, func(resp *http.Response) (any, error) {
-				return nil, errors.New("unauthorized")
-			}),
-			angler.WithStatusHandler(http.StatusNotFound, func(resp *http.Response) (any, error) {
-				return nil, errors.New("not found")
-			}),
-			angler.WithStatusHandler(http.StatusInternalServerError, func(resp *http.Response) (any, error) {
-				return nil, errors.New("internal error, retry")
-			}),
+			angler.WithStatusHandler(http.StatusTooManyRequests, handleStatusTooManyRequests(50*time.Millisecond)),
+			angler.WithStatusHandler(http.StatusBadRequest, handleStatusError("missing of malformed parameter")),
+			angler.WithStatusHandler(http.StatusUnauthorized, handleStatusError("unauthorized")),
+			angler.WithStatusHandler(http.StatusNotFound, handleStatusError("not found")),
+			angler.WithStatusHandler(http.StatusInternalServerError, handleStatusError("internal error, try again later")),
 		)
 
 		if err != nil && errors.Is(err, errToManyRequests) {
 			return projects, err
 		}
-		return projects, err
+		return projects, nil
 	},
 		slumber.WithRetryPolicy(slumber.ExponentialBackoff),
 		slumber.WithDelay(50*time.Millisecond),
@@ -189,8 +171,34 @@ func (c *apiClient) ListProjects(query url.Values) ([]Project, *NextPage, error)
 	if err != nil {
 		return nil, nil, err
 	}
+	if errResp != nil {
+		return nil, nil, fmt.Errorf("bad HTTP response status response: %+v", errResp)
+	}
 
 	return projects.Data, projects.NextPage, nil
+}
+
+func handleErrorStatusWithResponse[T any](errorResponse *T, message string) angler.StatusHandlerFunc {
+	return func(r *http.Response) (any, error) {
+		respBody, err := io.ReadAll(r.Body)
+		if err != nil {
+			return nil, err
+		}
+
+		err = json.Unmarshal(respBody, errorResponse)
+		if err != nil {
+			return nil, err
+		}
+		return errorResponse, errors.New(message)
+	}
+}
+
+func handleStatusTooManyRequests(sleepTime time.Duration) angler.StatusHandlerFunc {
+	return func(resp *http.Response) (any, error) {
+		sleepIfRetryAfter(&resp.Header, sleepTime)
+
+		return nil, errToManyRequests
+	}
 }
 
 func sleepIfRetryAfter(headers *http.Header, defaultDuration time.Duration) {

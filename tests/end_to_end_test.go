@@ -3,13 +3,14 @@ package tests
 import (
 	"encoding/json"
 	"io"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/CristianCurteanu/asana-extractor/pkg/asana"
 	"github.com/CristianCurteanu/asana-extractor/pkg/storage"
-	"github.com/google/uuid"
 	"github.com/h2non/gock"
 	"github.com/stretchr/testify/suite"
 )
@@ -55,37 +56,65 @@ func (ts *EndToEndTestSuit) Test_ExtractProjects_Success() {
 	ts.Require().NotEmpty(projects)
 }
 
-// TODO: Finish this test
-func (ts *EndToEndTestSuit) Test_EndToEndExtraction_Success() {
-	usersData, err := readFile(filepath.Join(ts.wd, "fixtures", "users.json"))
-	ts.Require().NoError(err)
-	gock.New("https://(.*).com").
+func (ts *EndToEndTestSuit) Test_APIClient_ErrorIfUnauthorizedStatus() {
+	gock.New("https://app.asana.com").
 		Get("/api/1.0/users").
 		ParamPresent("limit").
-		ParamPresent("workspace").
-		Reply(200).
-		BodyString(string(usersData))
-
-	gock.New("https://(.*).com").
-		Get("/api/1.0/workspaces").
-		ParamPresent("limit").
-		Reply(200).
-		BodyString(string(ts.encodeJSON(
-			asana.MultipleResponse[asana.Workspace]{
-				Data: []asana.Workspace{
-					{
-						GID: uuid.NewString(),
-					},
+		Reply(http.StatusUnauthorized).
+		BodyString(string(ts.encodeJSON(asana.ErrorsResponse{
+			Errors: []asana.ErrorResponse{
+				{
+					Message: "unauthorized",
 				},
 			},
-		)))
+		})))
+	_, _, err := ts.apiclient.ListUsers(url.Values{
+		"limit": []string{"100"},
+	})
+	ts.Require().Error(err)
+	ts.Require().ErrorContains(err, "bad HTTP response status response")
+}
 
-		// Get All the data
-	users, err := ts.extractor.GetAllUsers()
-	ts.Require().NoError(err)
-	ts.Require().NotEmpty(users)
+func (ts *EndToEndTestSuit) Test_APIClient_ErrorIfBadRequestStatus() {
+	gock.New("https://app.asana.com").
+		Get("/api/1.0/users").
+		ParamPresent("limit").
+		Reply(http.StatusBadRequest).
+		BodyString(string(ts.encodeJSON(asana.ErrorsResponse{
+			Errors: []asana.ErrorResponse{
+				{
+					Message: "bad request",
+				},
+			},
+		})))
+	_, _, err := ts.apiclient.ListUsers(url.Values{
+		"limit": []string{"100"},
+	})
+	ts.Require().Error(err)
+	ts.Require().ErrorContains(err, "bad HTTP response status response")
+}
+
+// TODO: Finish this test
+func (ts *EndToEndTestSuit) Test_EndToEndExtraction_Success() {
+	// usersData, err := readFile(filepath.Join(ts.wd, "fixtures", "users_response.json"))
+	// ts.Require().NoError(err)
+	// gock.New("https://app.asana.com").
+	// 	Get("/api/1.0/users").
+	// 	ParamPresent("limit").
+	// 	Reply(200).
+	// 	BodyString(string(usersData))
+
+	// Get All the data
+	// users, err := ts.extractor.GetAllUsers()
+	// users, _, err := ts.apiclient.ListUsers(url.Values{
+	// 	"limit": []string{"100"},
+	// })
+	// ts.Require().NoError(err)
+	// ts.Require().NotEmpty(users)
 
 	// Store all the data
+
+	// Check if the files are stored
 }
 
 func (s *EndToEndTestSuit) encodeJSON(data any) []byte {

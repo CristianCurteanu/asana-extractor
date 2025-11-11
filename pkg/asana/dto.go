@@ -36,3 +36,13 @@ type Photo struct {
 	Medium string `json:"photo.image_128x128"`
 	Huge   string `json:"photo.image_1024x1024"`
 }
+
+type ErrorsResponse struct {
+	Errors []ErrorResponse `json:"errors"`
+}
+
+type ErrorResponse struct {
+	Message string `json:"message"`
+	Help    string `json:"help"`
+	Phrase  string `json:"phrase"`
+}
